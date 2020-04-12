@@ -7,7 +7,14 @@ obj-m += khttpd.o
 khttpd-objs := \
 	http_parser.o \
 	http_server.o \
+	bignum/fibonacci.o \
+	bignum/bignum.o \
+	bignum/apm.o \
+	bignum/sqr.o \
+	bignum/mul.o \
+	bignum/format.o \
 	main.o
+ccflags-y := -std=gnu11 -Wno-declaration-after-statement
 
 GIT_HOOKS := .git/hooks/applied
 all: $(GIT_HOOKS) http_parser.c htstress
