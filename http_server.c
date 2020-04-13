@@ -7,18 +7,20 @@
 #include "http_parser.h"
 #include "http_server.h"
 
+#include "bignum/fibonacci.h"
+
 #define CRLF "\r\n"
 
-#define HTTP_RESPONSE_200_DUMMY                               \
-    ""                                                        \
-    "HTTP/1.1 200 OK" CRLF "Server: " KBUILD_MODNAME CRLF     \
-    "Content-Type: text/plain" CRLF "Content-Length: 12" CRLF \
-    "Connection: Close" CRLF CRLF "Hello World!" CRLF
-#define HTTP_RESPONSE_200_KEEPALIVE_DUMMY                     \
-    ""                                                        \
-    "HTTP/1.1 200 OK" CRLF "Server: " KBUILD_MODNAME CRLF     \
-    "Content-Type: text/plain" CRLF "Content-Length: 12" CRLF \
-    "Connection: Keep-Alive" CRLF CRLF "Hello World!" CRLF
+#define HTTP_RESPONSE_200_DUMMY                                \
+    ""                                                         \
+    "HTTP/1.1 200 OK" CRLF "Server: " KBUILD_MODNAME CRLF      \
+    "Content-Type: text/plain" CRLF "Content-Length: %lu" CRLF \
+    "Connection: Close" CRLF CRLF "%s" CRLF
+#define HTTP_RESPONSE_200_KEEPALIVE_DUMMY                      \
+    ""                                                         \
+    "HTTP/1.1 200 OK" CRLF "Server: " KBUILD_MODNAME CRLF      \
+    "Content-Type: text/plain" CRLF "Content-Length: %lu" CRLF \
+    "Connection: Keep-Alive" CRLF CRLF "%s" CRLF
 #define HTTP_RESPONSE_501                                              \
     ""                                                                 \
     "HTTP/1.1 501 Not Implemented" CRLF "Server: " KBUILD_MODNAME CRLF \
@@ -73,6 +75,41 @@ static int http_server_send(struct socket *sock, const char *buf, size_t size)
     return done;
 }
 
+static char *response_msg(char *request_url, int keep_alive)
+{
+    int url_len = strlen(request_url);
+    char *url = kmalloc(url_len, GFP_KERNEL);
+    memcpy(url, request_url + 1, url_len);
+
+    char **ptr = &url;
+    strsep(ptr, "/");
+
+    uint32_t n;
+    kstrtou32(*ptr, 10, &n);
+
+    char *fib = eval_fib(n);
+    size_t fib_len = strlen(fib);
+    pr_info("res fib: %s", fib);
+
+    size_t res_len = strlen(keep_alive ? HTTP_RESPONSE_200_KEEPALIVE_DUMMY
+                                       : HTTP_RESPONSE_200_DUMMY) -
+                     4 + strlen(fib);
+    char *buf = kmalloc(res_len, GFP_KERNEL);
+
+    if (buf)
+        pr_info("allocated");
+    else
+        pr_info("allocate failed");
+    keep_alive ? snprintf(buf, res_len, HTTP_RESPONSE_200_KEEPALIVE_DUMMY,
+                          fib_len, fib)
+               : snprintf(buf, res_len, HTTP_RESPONSE_200_DUMMY, fib_len, fib);
+
+    kfree(url);
+    kfree(fib);
+
+    return buf;
+}
+
 static int http_server_response(struct http_request *request, int keep_alive)
 {
     char *response;
@@ -81,9 +118,13 @@ static int http_server_response(struct http_request *request, int keep_alive)
     if (request->method != HTTP_GET)
         response = keep_alive ? HTTP_RESPONSE_501_KEEPALIVE : HTTP_RESPONSE_501;
     else
-        response = keep_alive ? HTTP_RESPONSE_200_KEEPALIVE_DUMMY
-                              : HTTP_RESPONSE_200_DUMMY;
-    http_server_send(request->socket, response, strlen(response));
+        response = response_msg(request->request_url, keep_alive);
+
+    if (response)
+        http_server_send(request->socket, response, strlen(response));
+
+    if (response && request->method != HTTP_GET)
+        kfree(response);
     return 0;
 }
 
