@@ -11,16 +11,21 @@
 
 #define CRLF "\r\n"
 
-#define HTTP_RESPONSE_200_DUMMY                                \
+#define HTTP_RESPONSE_200                                      \
     ""                                                         \
     "HTTP/1.1 200 OK" CRLF "Server: " KBUILD_MODNAME CRLF      \
     "Content-Type: text/plain" CRLF "Content-Length: %lu" CRLF \
-    "Connection: Close" CRLF CRLF "%s" CRLF
-#define HTTP_RESPONSE_200_KEEPALIVE_DUMMY                      \
-    ""                                                         \
-    "HTTP/1.1 200 OK" CRLF "Server: " KBUILD_MODNAME CRLF      \
-    "Content-Type: text/plain" CRLF "Content-Length: %lu" CRLF \
-    "Connection: Keep-Alive" CRLF CRLF "%s" CRLF
+    "Connection: %s" CRLF CRLF "%s" CRLF
+#define HTTP_RESPONSE_200_DUMMY                               \
+    ""                                                        \
+    "HTTP/1.1 200 OK" CRLF "Server: " KBUILD_MODNAME CRLF     \
+    "Content-Type: text/plain" CRLF "Content-Length: 12" CRLF \
+    "Connection: Close" CRLF CRLF "Hello World!" CRLF
+#define HTTP_RESPONSE_200_KEEPALIVE_DUMMY                     \
+    ""                                                        \
+    "HTTP/1.1 200 OK" CRLF "Server: " KBUILD_MODNAME CRLF     \
+    "Content-Type: text/plain" CRLF "Content-Length: 12" CRLF \
+    "Connection: Keep-Alive" CRLF CRLF "Hello World!" CRLF
 #define HTTP_RESPONSE_501                                              \
     ""                                                                 \
     "HTTP/1.1 501 Not Implemented" CRLF "Server: " KBUILD_MODNAME CRLF \
@@ -75,12 +80,24 @@ static int http_server_send(struct socket *sock, const char *buf, size_t size)
     return done;
 }
 
-static char *response_msg(char *request_url, int keep_alive)
+static size_t get_log10(size_t N)
 {
-    int url_len = strlen(request_url);
-    char *url = kmalloc(url_len, GFP_KERNEL);
-    memcpy(url, request_url + 1, url_len);
+    unsigned int vals[] = {
+        1UL,      10UL,      100UL,      1000UL,      10000UL,
+        100000UL, 1000000UL, 10000000UL, 100000000UL, 1000000000UL,
+    };
+    size_t i;
+    for (i = 0; i < 9; ++i) {                   // 9
+        if (N >= vals[i] && N < vals[i + 1]) {  // 8
+            break;                              // 1
+        }
+    }
+    return i;
+}
 
+static char *response_msg(char *url, int keep_alive)
+{
+    url++;
     char **ptr = &url;
     strsep(ptr, "/");
 
@@ -91,20 +108,13 @@ static char *response_msg(char *request_url, int keep_alive)
     size_t fib_len = strlen(fib);
     pr_info("res fib: %s", fib);
 
-    size_t res_len = strlen(keep_alive ? HTTP_RESPONSE_200_KEEPALIVE_DUMMY
-                                       : HTTP_RESPONSE_200_DUMMY) -
-                     4 + strlen(fib);
+    char *connect = keep_alive ? "keep_Alive" : "Close";
+    size_t res_len = strlen(HTTP_RESPONSE_200) + get_log10(fib_len) + 1 +
+                     strlen(connect) + fib_len;
     char *buf = kmalloc(res_len, GFP_KERNEL);
 
-    if (buf)
-        pr_info("allocated");
-    else
-        pr_info("allocate failed");
-    keep_alive ? snprintf(buf, res_len, HTTP_RESPONSE_200_KEEPALIVE_DUMMY,
-                          fib_len, fib)
-               : snprintf(buf, res_len, HTTP_RESPONSE_200_DUMMY, fib_len, fib);
+    snprintf(buf, res_len, HTTP_RESPONSE_200, fib_len, connect, fib);
 
-    kfree(url);
     kfree(fib);
 
     return buf;

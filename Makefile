@@ -14,7 +14,7 @@ khttpd-objs := \
 	bignum/mul.o \
 	bignum/format.o \
 	main.o
-ccflags-y := -std=gnu11 -Wno-declaration-after-statement
+ccflags-y := -std=gnu11 -Wno-declaration-after-statement -msse2
 
 GIT_HOOKS := .git/hooks/applied
 all: $(GIT_HOOKS) http_parser.c htstress
