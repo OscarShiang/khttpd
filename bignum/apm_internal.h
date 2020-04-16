@@ -10,19 +10,6 @@
 #endif
 #endif
 
-/* integer maximuns */
-#ifndef UINT32_MAX
-#define UINT32_MAX 4294967295U
-#endif
-
-#ifndef UINT64_MAX
-#define UINT64_MAX 18446744073709551615ULL
-#endif
-
-#ifndef UINT64_C
-#define UINT64_C(x) x##ULL
-#endif
-
 /* Tunable parameters: Karatsuba multiplication and squaring cutoff. */
 #define KARATSUBA_MUL_THRESHOLD 32
 #define KARATSUBA_SQR_THRESHOLD 64
@@ -138,27 +125,15 @@ typedef unsigned __int128 uint128_t;
  * or not. This is intentional and sometimes useful.
  */
 #ifndef NDEBUG
-#if __KERNEL__
 #include <linux/kernel.h>
-#define ASSERT(x)                                                            \
-    do {                                                                     \
-        if (x)                                                               \
-            break;                                                           \
-        printk(KERN_EMERG "### ASSERTION FAILED %s: %s: %d: %s\n", __FILE__, \
-               __func__, __LINE__, #x);                                      \
+#include <linux/slab.h>
+#define ASSERT(expr)                                                    \
+    do {                                                                \
+        if (!unlikely(expr)) {                                          \
+            pr_alert("%s:%d (%s) assertion failed: \"%s\"\n", __FILE__, \
+                     __LINE__, __PRETTY_FUNCTION__, #expr);             \
+        }                                                               \
     } while (0)
-#else
-#include <stdio.h>
-#include <stdlib.h>
-#define ASSERT(expr)                                                           \
-    do {                                                                       \
-        if (!unlikely(expr)) {                                                 \
-            fprintf(stderr, "%s:%d (%s) assertion failed: \"%s\"\n", __FILE__, \
-                    __LINE__, __PRETTY_FUNCTION__, #expr);                     \
-            abort();                                                           \
-        }                                                                      \
-    } while (0)
-#endif
 #else
 #define ASSERT(expr) (void) (expr)
 #endif

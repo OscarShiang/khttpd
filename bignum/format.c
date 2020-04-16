@@ -1,11 +1,48 @@
-#if __KERNEL__
-#include <linux/types.h>
-#else
-#include <ctype.h>
-#include <stdio.h>
-#endif
+#include <linux/ctype.h>
+#include <linux/kernel.h>
 
 #include "apm.h"
+
+/* radix_sizes[B] = number of radix-B digits needed to represent an 8-bit
+ * unsigned integer; B on [2, 36] */
+static const float radix_sizes[37] = {
+    /*  0 */ 0.00000000f,
+    /*  1 */ 0.00000000f,
+    /*  2 */ 8.00000000f,
+    /*  3 */ 5.04743803f,
+    /*  4 */ 4.00000000f,
+    /*  5 */ 3.44541246f,
+    /*  6 */ 3.09482246f,
+    /*  7 */ 2.84965750f,
+    /*  8 */ 2.66666667f,
+    /*  9 */ 2.52371901f,
+    /* 10 */ 2.40823997f,
+    /* 11 */ 2.31251861f,
+    /* 12 */ 2.23154357f,
+    /* 13 */ 2.16190524f,
+    /* 14 */ 2.10119628f,
+    /* 15 */ 2.04766420f,
+    /* 16 */ 2.00000000f,
+    /* 17 */ 1.95720434f,
+    /* 18 */ 1.91849973f,
+    /* 19 */ 1.88327131f,
+    /* 20 */ 1.85102571f,
+    /* 21 */ 1.82136199f,
+    /* 22 */ 1.79395059f,
+    /* 23 */ 1.76851784f,
+    /* 24 */ 1.74483434f,
+    /* 25 */ 1.72270623f,
+    /* 26 */ 1.70196843f,
+    /* 27 */ 1.68247934f,
+    /* 28 */ 1.66411678f,
+    /* 29 */ 1.64677466f,
+    /* 30 */ 1.63036038f,
+    /* 31 */ 1.61479269f,
+    /* 32 */ 1.60000000f,
+    /* 33 */ 1.58591891f,
+    /* 34 */ 1.57249306f,
+    /* 35 */ 1.55967218f,
+    /* 36 */ 1.54741123f};
 
 static const struct {
     apm_digit max_radix;
@@ -94,15 +131,17 @@ static const struct {
  * the representation of a LEN-digit number in BASE. Return value does NOT
  * account for terminating '\0'.
  */
-size_t apm_string_size(apm_size size)
+static size_t apm_string_size(apm_size size, unsigned int radix)
 {
-    unsigned int radix = 10;
+    ASSERT(radix >= 2);
+    ASSERT(radix <= 36);
+
     if ((radix & (radix - 1)) == 0) {
         unsigned int lg = apm_digit_lsb_shift(radix);
         return ((size * APM_DIGIT_BITS + lg - 1) / lg) + 1;
     }
     /* round up to second next largest integer */
-    return ((size_t)(5 * (size * APM_DIGIT_SIZE)) >> 1) + 2;
+    return (size_t)(radix_sizes[radix] * (size * APM_DIGIT_SIZE)) + 2;
 }
 
 /* Set u[size] = u[usize] / v, and return the remainder. */
@@ -141,9 +180,11 @@ static apm_digit apm_ddivi(apm_digit *u, apm_size size, apm_digit v)
 static const char radix_chars[37] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
 /* Return u[size] as a null-terminated character string in a radix on [2,36]. */
-char *apm_get_str(const apm_digit *u, apm_size size, char *out)
+static char *apm_get_str(const apm_digit *u,
+                         apm_size size,
+                         unsigned int radix,
+                         char *out)
 {
-    unsigned int radix = 10;
     ASSERT(u != NULL);
     ASSERT(radix >= 2);
     ASSERT(radix <= 36);
@@ -161,7 +202,7 @@ char *apm_get_str(const apm_digit *u, apm_size size, char *out)
     const unsigned int max_power = radix_table[radix].max_power;
 
     if (!out)
-        out = MALLOC(apm_string_size(size) + 1);
+        out = MALLOC(apm_string_size(size, radix) + 1);
     char *outp = out;
 
     if ((radix & (radix - 1)) == 0) { /* Radix is a power of two. */
@@ -242,8 +283,19 @@ char *apm_get_str(const apm_digit *u, apm_size size, char *out)
     return out;
 }
 
-#if 0
-void apm_fprint(const apm_digit *u, apm_size size, unsigned int radix, FILE *fp)
+char *apm_return(const apm_digit *u, apm_size size)
+{
+    ASSERT(u != NULL);
+
+    APM_NORMALIZE(u, size);
+    const size_t string_size = apm_string_size(size, 10) + 1;
+    char *str = MALLOC(string_size);
+    char *p = apm_get_str(u, size, 10, str);
+    ASSERT(p != NULL);
+    return p;
+}
+
+void apm_print(const apm_digit *u, apm_size size, unsigned int radix)
 {
     ASSERT(u != NULL);
 
@@ -255,7 +307,6 @@ void apm_fprint(const apm_digit *u, apm_size size, unsigned int radix, FILE *fp)
     char *str = MALLOC(string_size);
     char *p = apm_get_str(u, size, radix, str);
     ASSERT(p != NULL);
-    fputs(p, fp);
+    pr_info("%s", p);
     FREE(str);
 }
-#endif

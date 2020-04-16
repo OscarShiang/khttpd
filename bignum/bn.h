@@ -3,10 +3,7 @@
 #ifndef _BIGNUM_H_
 #define _BIGNUM_H_
 
-#if __KERNEL__
-#else
-#include <stdio.h>
-#endif
+#include <linux/kernel.h>
 
 #include "apm.h"
 
@@ -50,14 +47,12 @@ void bn_mul(const bn *a, const bn *b, bn *p);
 /* B = A * A */
 void bn_sqr(const bn *a, bn *b);
 
-char *bn_sprint(const bn *n);
+// default to base 10
+char *bn_return(const bn *n);
 
-#if 0
-void bn_fprint(const bn *n, unsigned int base, FILE *fp);
-#define bn_print(n, base) bn_fprint((n), (base), stdout)
+void bn_print(const bn *n, unsigned int base);
 #define bn_print_dec(n) bn_print((n), 10)
 #define bn_print_hex(n) bn_print((n), 16)
-#endif
 
 #ifdef __cplusplus
 }

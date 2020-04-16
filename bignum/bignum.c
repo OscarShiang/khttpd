@@ -1,7 +1,4 @@
-#if __KERNEL__
-#else
-#include <stdlib.h>
-#endif
+#include <linux/slab.h>
 
 #include "bn.h"
 
@@ -271,31 +268,20 @@ void bn_lshift(const bn *p, unsigned int bits, bn *q)
     }
 }
 
-char *bn_sprint(const bn *n)
+char *bn_return(const bn *n)
 {
-    const size_t string_size = apm_string_size(n->size) + 1;
-    char *str = MALLOC(string_size);
-    char *ptr = apm_get_str(n->digits, n->size, str);
-    if (n->sign) {
-        ptr = REALLOC(ptr, string_size + 1);
-        memmove(ptr + 1, ptr, string_size);
-        ptr[0] = '-';
-        return ptr;
-    } else
-        return ptr;
+    if (n->size == 0)
+        return "0";
+    return apm_return(n->digits, n->size);
 }
 
-#if 0
-void bn_fprint(const bn *n, unsigned int base, FILE *fp)
+void bn_print(const bn *n, unsigned int base)
 {
-    if (!fp)
-        fp = stdout;
     if (n->size == 0) {
-        fputc('0', fp);
+        pr_info("0");
         return;
     }
     if (n->sign)
-        fputc('-', fp);
-    apm_fprint(n->digits, n->size, base, fp);
+        pr_info("-");
+    apm_print(n->digits, n->size, base);
 }
-#endif

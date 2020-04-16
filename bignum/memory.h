@@ -1,22 +1,13 @@
 #ifndef _MEMORY_H_
 #define _MEMORY_H_
 
-#if __KERNEL__
+#include <linux/kernel.h>
 #include <linux/slab.h>
-#else
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#endif
+#include <linux/string.h>
 
-#if __KERNEL__
-#define xmalloc(n) kmalloc(n, GFP_KERNEL)
-#define xrealloc(p, n) krealloc(p, n, GFP_KERNEL)
-#define xfree(p) kfree(p);
-#else
-static void *(*orig_malloc)(size_t) = malloc;
-static void *(*orig_realloc)(void *, size_t) = realloc;
-static void (*orig_free)(void *) = free;
+static void *(*orig_malloc)(size_t, gfp_t) = kmalloc;
+static void *(*orig_realloc)(const void *, size_t, gfp_t) = krealloc;
+static void (*orig_free)(const void *) = kfree;
 
 /* TODO: implement custom memory allocator which fits arbitrary precision
  * operations
@@ -24,9 +15,9 @@ static void (*orig_free)(void *) = free;
 static inline void *xmalloc(size_t size)
 {
     void *p;
-    if (!(p = (*orig_malloc)(size))) {
-        fprintf(stderr, "Out of memory.\n");
-        abort();
+    if (!(p = (*orig_malloc)(size, GFP_KERNEL))) {
+        pr_alert("Out of memory.");
+        return NULL;
     }
     return p;
 }
@@ -34,9 +25,9 @@ static inline void *xmalloc(size_t size)
 static inline void *xrealloc(void *ptr, size_t size)
 {
     void *p;
-    if (!(p = (*orig_realloc)(ptr, size)) && size != 0) {
-        fprintf(stderr, "Out of memory.\n");
-        abort();
+    if (!(p = (*orig_realloc)(ptr, size, GFP_KERNEL)) && size != 0) {
+        pr_alert("Out of memory.\n");
+        return NULL;
     }
     return p;
 }
@@ -45,7 +36,6 @@ static inline void xfree(void *ptr)
 {
     (*orig_free)(ptr);
 }
-#endif
 
 #define MALLOC(n) xmalloc(n)
 #define REALLOC(p, n) xrealloc(p, n)

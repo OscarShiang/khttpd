@@ -1,8 +1,3 @@
-#if __KERNEL__
-#else
-#include <stdbool.h>
-#endif
-
 #include "apm.h"
 
 extern void _apm_mul_base(const apm_digit *u,

@@ -1,11 +1,7 @@
-#if __KERNEL__
-#else
-#include <stdio.h>
-#include <stdlib.h>
-#endif
+#include <linux/kernel.h>
+#include <linux/slab.h>
 
 #include "bn.h"
-#include "fibonacci.h"
 
 /* Compute the Nth Fibonnaci number F_n, where
  * F_0 = 0
@@ -58,35 +54,14 @@ static void fibonacci(uint64_t n, bn *fib)
     bn_free(a);
 }
 
-char *eval_fib(uint32_t n)
-{
-    bn_t fib = BN_INITIALIZER;
-    fibonacci(n, fib);
-
-    char *str = bn_sprint(fib);
-
-    bn_free(fib);
-
-    return str;
-}
-
-#if 0
-int main(int argc, char *argv[])
+char *eval_fib(size_t n)
 {
     bn_t fib = BN_INITIALIZER;
 
-    if (argc < 2)
-        return -1;
-
-    unsigned int n = strtoul(argv[1], NULL, 10);
-    if (!n)
-        return -2;
-
     fibonacci(n, fib);
-    printf("Fib(%u)=", n), bn_print_dec(fib), printf("\n");
+
+    char *ptr = bn_return(fib);
 
     bn_free(fib);
-
-    return 0;
+    return ptr;
 }
-#endif

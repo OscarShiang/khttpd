@@ -1,6 +1,6 @@
 #ifndef _FIB_H
 #define _FIB_H
 
-char *eval_fib(uint32_t n);
+char *eval_fib(size_t n);
 
-#endif /* !FIB_H */
+#endif /* !_FIB_H */

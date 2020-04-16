@@ -1,8 +1,3 @@
-#if __KERNEL__
-#else
-#include <stdbool.h>
-#endif
-
 #include "apm.h"
 
 /* Multiply u[usize] by v[vsize] and store the result in w[usize + vsize],
