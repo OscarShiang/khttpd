@@ -98,6 +98,9 @@ static size_t get_log10(size_t N)
 static char *response_msg(char *url, int keep_alive)
 {
     url++;
+    if (!*url)
+        return keep_alive ? HTTP_RESPONSE_200_KEEPALIVE_DUMMY
+                          : HTTP_RESPONSE_200_DUMMY;
     char **ptr = &url;
     strsep(ptr, "/");
 
