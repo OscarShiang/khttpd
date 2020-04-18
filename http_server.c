@@ -2,6 +2,7 @@
 
 #include <linux/kthread.h>
 #include <linux/sched/signal.h>
+#include <linux/slab.h>
 #include <linux/tcp.h>
 
 #include "http_parser.h"
@@ -97,29 +98,27 @@ static size_t get_log10(size_t N)
 
 static char *response_msg(char *url, int keep_alive)
 {
-    url++;
-    if (!*url)
-        return keep_alive ? HTTP_RESPONSE_200_KEEPALIVE_DUMMY
-                          : HTTP_RESPONSE_200_DUMMY;
-    char **ptr = &url;
-    strsep(ptr, "/");
-
-    uint32_t n;
-    kstrtou32(*ptr, 10, &n);
-
-    char *fib = eval_fib(n);
-    size_t fib_len = strlen(fib);
-    pr_info("res fib: %s", fib);
+    char *path, *msg;
+    bool isFib = (path = strnstr(url, "fib", strlen(url))) != 0;
+    if (!isFib) {
+        msg = kstrdup("Hello World", GFP_KERNEL);
+    } else {
+        char **ptr = &path;
+        strsep(ptr, "/");
+        uint32_t n;
+        kstrtou32(*ptr, 10, &n);
+        msg = eval_fib(n);
+        pr_info("res fib: %s", msg);
+    }
 
     char *connect = keep_alive ? "keep_Alive" : "Close";
-    size_t res_len = strlen(HTTP_RESPONSE_200) + get_log10(fib_len) + 1 +
-                     strlen(connect) + fib_len;
+    size_t msg_len = strlen(msg);
+    size_t res_len = strlen(HTTP_RESPONSE_200) + get_log10(msg_len) + 1 +
+                     strlen(connect) + msg_len;
     char *buf = kmalloc(res_len, GFP_KERNEL);
+    snprintf(buf, res_len, HTTP_RESPONSE_200, msg_len, connect, msg);
 
-    snprintf(buf, res_len, HTTP_RESPONSE_200, fib_len, connect, fib);
-
-    kfree(fib);
-
+    kfree(msg);
     return buf;
 }
 
@@ -133,10 +132,9 @@ static int http_server_response(struct http_request *request, int keep_alive)
     else
         response = response_msg(request->request_url, keep_alive);
 
-    if (response)
-        http_server_send(request->socket, response, strlen(response));
+    http_server_send(request->socket, response, strlen(response));
 
-    if (response && request->method != HTTP_GET)
+    if (request->method == HTTP_GET)
         kfree(response);
     return 0;
 }
