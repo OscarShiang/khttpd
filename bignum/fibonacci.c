@@ -60,7 +60,9 @@ char *eval_fib(size_t n)
 
     fibonacci(n, fib);
 
+    preempt_disable();
     char *ptr = bn_return(fib);
+    preempt_enable();
 
     bn_free(fib);
     return ptr;

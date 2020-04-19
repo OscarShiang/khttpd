@@ -98,9 +98,9 @@ static size_t get_log10(size_t N)
 
 static char *response_msg(char *url, int keep_alive)
 {
-    char *path, *msg;
-    bool isFib = (path = strnstr(url, "fib", strlen(url))) != 0;
-    if (!isFib) {
+    char *msg;
+    char *path = strnstr(url, "fib", strlen(url));
+    if (!path) {
         msg = kstrdup("Hello World", GFP_KERNEL);
     } else {
         char **ptr = &path;
@@ -108,7 +108,6 @@ static char *response_msg(char *url, int keep_alive)
         uint32_t n;
         kstrtou32(*ptr, 10, &n);
         msg = eval_fib(n);
-        pr_info("res fib: %s", msg);
     }
 
     char *connect = keep_alive ? "keep_Alive" : "Close";
@@ -216,6 +215,7 @@ static int http_server_worker(void *arg)
         pr_err("can't allocate memory!\n");
         return -1;
     }
+    buf[RECV_BUFFER_SIZE - 1] = '\0';
 
     request.socket = socket;
     http_parser_init(&parser, HTTP_REQUEST);
@@ -228,6 +228,7 @@ static int http_server_worker(void *arg)
             break;
         }
         http_parser_execute(&parser, &setting, buf, ret);
+
         if (request.complete && !http_should_keep_alive(&parser))
             break;
     }

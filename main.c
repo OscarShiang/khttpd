@@ -24,8 +24,8 @@ static inline int setsockopt(struct socket *sock,
                              int optname,
                              int optval)
 {
-    int opt = optval;
-    return kernel_setsockopt(sock, level, optname, (char *) &opt, sizeof(opt));
+    return kernel_setsockopt(sock, level, optname, (char *) &optval,
+                             sizeof(optval));
 }
 
 static int open_listen_socket(ushort port, ushort backlog, struct socket **res)
