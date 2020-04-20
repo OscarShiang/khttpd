@@ -1,3 +1,4 @@
+#include <asm/fpu/api.h>
 #include <linux/ctype.h>
 #include <linux/kernel.h>
 
@@ -141,7 +142,11 @@ static size_t apm_string_size(apm_size size, unsigned int radix)
         return ((size * APM_DIGIT_BITS + lg - 1) / lg) + 1;
     }
     /* round up to second next largest integer */
-    return (size_t)(radix_sizes[radix] * (size * APM_DIGIT_SIZE)) + 2;
+    kernel_fpu_begin();
+    size_t len = (size_t)(radix_sizes[radix] * (size * APM_DIGIT_SIZE)) + 2;
+    kernel_fpu_end();
+
+    return len;
 }
 
 /* Set u[size] = u[usize] / v, and return the remainder. */
